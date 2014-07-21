@@ -363,6 +363,8 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 		type = SIPE_MEDIA_AUDIO;
 	else if (sipe_strequal(sdpmedia->name, "video"))
 		type = SIPE_MEDIA_VIDEO;
+	else if (sipe_strequal(sdpmedia->name, "applicationsharing"))
+		type = SIPE_MEDIA_APPLICATION;
 	else {
 		// TODO: incompatible media, should not happen here
 		g_free(sdpmedia->name);
@@ -1252,6 +1254,8 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 				type = SIPE_MEDIA_AUDIO;
 			else if (sipe_strequal(id, "video"))
 				type = SIPE_MEDIA_VIDEO;
+			else if (sipe_strequal(id, "applicationsharing"))
+				type = SIPE_MEDIA_APPLICATION;
 			else
 				continue;
 
