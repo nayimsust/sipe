@@ -230,6 +230,9 @@ gssize sipe_backend_ft_write(struct sipe_file_transfer *ft,
 			     const guchar *data,
 			     gsize size);
 
+gssize sipe_backend_ft_write_file(struct sipe_file_transfer *ft,
+				  const guchar *data,
+				  gsize size);
 
 void sipe_backend_ft_cancel_local(struct sipe_file_transfer *ft);
 void sipe_backend_ft_cancel_remote(struct sipe_file_transfer *ft);
@@ -378,6 +381,8 @@ struct sipe_media_call {
 					      struct sipe_media_stream *);
 	void (*call_hangup_cb)(struct sipe_media_call *, gboolean local);
 	void (*error_cb)(struct sipe_media_call *, gchar *message);
+
+	void (*read_cb)(struct sipe_media_call *, struct sipe_media_stream *);
 };
 
 struct sipe_media_relay {
@@ -501,6 +506,11 @@ GList* sipe_backend_get_local_candidates(struct sipe_media_call *media,
 void sipe_backend_media_accept(struct sipe_backend_media *media, gboolean local);
 void sipe_backend_media_hangup(struct sipe_backend_media *media, gboolean local);
 void sipe_backend_media_reject(struct sipe_backend_media *media, gboolean local);
+
+gint sipe_backend_media_read(struct sipe_media_call *call,
+			     struct sipe_media_stream *stream,
+			     guint8 *buffer, guint buffer_len,
+			     gboolean blocking);
 
 /** NETWORK ******************************************************************/
 
