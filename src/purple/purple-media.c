@@ -437,7 +437,7 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 	struct sipe_backend_media_stream *stream = NULL;
 	PurpleMediaSessionType prpl_type = sipe_media_to_purple(type);
 	// Preallocate enough space for all potential parameters to fit.
-	GParameter *params = g_new0(GParameter, 5);
+	GParameter *params = g_new0(GParameter, 6);
 	guint params_cnt = 0;
 	gchar *transmitter;
 	GValue *relay_info = NULL;
@@ -472,6 +472,18 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 			g_value_init(&params[params_cnt].value, SIPE_RELAYS_G_TYPE);
 			g_value_set_boxed(&params[params_cnt].value, media_relays);
 			relay_info = &params[params_cnt].value;
+			++params_cnt;
+		}
+
+		if (type == SIPE_MEDIA_APPLICATION) {
+			params[params_cnt].name = "ice-udp";
+			g_value_init(&params[params_cnt].value, G_TYPE_BOOLEAN);
+			g_value_set_boolean(&params[params_cnt].value, FALSE);
+			++params_cnt;
+
+			params[params_cnt].name = "reliable";
+			g_value_init(&params[params_cnt].value, G_TYPE_BOOLEAN);
+			g_value_set_boolean(&params[params_cnt].value, TRUE);
 			++params_cnt;
 		}
 	} else {
