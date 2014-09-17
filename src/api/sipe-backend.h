@@ -513,6 +513,10 @@ gint sipe_backend_media_read(struct sipe_media_call *call,
 			     struct sipe_media_stream *stream,
 			     guint8 *buffer, guint buffer_len,
 			     gboolean blocking);
+gint sipe_backend_media_write(struct sipe_media_call *call,
+			      struct sipe_media_stream *stream,
+			      guint8 *buffer, guint buffer_len,
+			      gboolean blocking);
 
 /** NETWORK ******************************************************************/
 
