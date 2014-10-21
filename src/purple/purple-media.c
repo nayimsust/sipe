@@ -430,7 +430,8 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      SipeMediaType type,
 			      SipeIceVersion ice_version,
 			      gboolean initiator,
-			      struct sipe_backend_media_relays *media_relays)
+			      struct sipe_backend_media_relays *media_relays,
+			      guint min_port, guint max_port)
 {
 	struct sipe_backend_media *media = call->backend_private;
 	struct sipe_backend_media_stream *stream = NULL;
@@ -451,6 +452,20 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 				 NICE_COMPATIBILITY_OC2007 :
 				 NICE_COMPATIBILITY_OC2007R2);
 		++params_cnt;
+
+		if (min_port != 0) {
+			params[params_cnt].name = "min-port";
+			g_value_init(&params[params_cnt].value, G_TYPE_UINT);
+			g_value_set_uint(&params[params_cnt].value, min_port);
+			++params_cnt;
+		}
+
+		if (max_port != 0) {
+			params[params_cnt].name = "max-port";
+			g_value_init(&params[params_cnt].value, G_TYPE_UINT);
+			g_value_set_uint(&params[params_cnt].value, max_port);
+			++params_cnt;
+		}
 
 		if (media_relays) {
 			params[params_cnt].name = "relay-info";
