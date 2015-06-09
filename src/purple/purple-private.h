@@ -20,26 +20,50 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "conversation.h"
+
 #include "version.h"
+#if PURPLE_VERSION_CHECK(3,0,0)
+#include "plugins.h"
+#else
+#include "accountopt.h"
+#include "plugin.h"
+#endif
+
+#define SIPE_PURPLE_PLUGIN_ID "prpl-sipe"
+#define SIPE_PURPLE_PLUGIN_NAME "Office Communicator"
+
+#define SIPE_PURPLE_PLUGIN_SUMMARY \
+	"Microsoft Office Communicator Protocol Plugin"
+
+#define SIPE_PURPLE_PLUGIN_DESCRIPTION \
+	"A plugin for the extended SIP/SIMPLE protocol used by " \
+	"Microsoft Live/Office Communications/Lync Server (LCS2005/OCS2007+)"
+
+#define SIPE_PURPLE_PROTOCOL_OPTIONS OPT_PROTO_CHAT_TOPIC | OPT_PROTO_PASSWORD_OPTIONAL
+
+#if !PURPLE_VERSION_CHECK(3,0,0)
+#define PurpleIMTypingState PurpleTypingState
+#endif
 
 /* Forward declarations */
 struct sipe_chat_session;
 struct sipe_core_public;
 struct _PurpleAccount;
+struct _PurpleBlistNode;
 struct _PurpleBuddy;
 struct _PurpleChat;
 struct _PurpleConnection;
 struct _PurpleConversation;
 struct _PurpleGroup;
 struct _PurpleMessage;
+struct _PurpleNotifyUserInfo;
+struct _PurplePlugin;
 struct _PurplePluginAction;
+struct _PurpleProtocolAction;
 struct _PurpleRoomlist;
 struct _PurpleStatus;
 struct _PurpleXfer;
-
-#ifndef _PurpleMessageFlags
-#define _PurpleMessageFlags int
-#endif
 
 struct sipe_backend_private {
 	struct sipe_core_public *public;
@@ -114,7 +138,7 @@ int sipe_purple_chat_send(struct _PurpleConnection *gc,
 			  struct _PurpleMessage *msg);
 #else
 			  const char *what,
-			  _PurpleMessageFlags flags);
+			  PurpleMessageFlags flags);
 #endif
 GList *sipe_purple_chat_menu(struct _PurpleChat *chat);
 
@@ -146,7 +170,11 @@ void sipe_purple_group_buddy(struct _PurpleConnection *gc,
 GList *sipe_purple_buddy_menu(struct _PurpleBuddy *buddy);
 
 /* libpurple search callbacks */
+#if PURPLE_VERSION_CHECK(3,0,0)
+void sipe_purple_show_find_contact(struct _PurpleProtocolAction *action);
+#else
 void sipe_purple_show_find_contact(struct _PurplePluginAction *action);
+#endif
 
 /* libpurple status callbacks */
 void sipe_purple_set_status(struct _PurpleAccount *account,
@@ -170,6 +198,49 @@ void sipe_purple_transport_close_all(struct sipe_backend_private *purple_private
 #define PURPLE_BUDDY_TO_SIPE_CORE_PUBLIC   ((struct sipe_core_public *) purple_account_get_connection(purple_buddy_get_account(buddy))->proto_data)
 #define PURPLE_GC_TO_SIPE_CORE_PUBLIC      ((struct sipe_core_public *) gc->proto_data)
 #endif
+
+/* Protocol common functions */
+
+gboolean sipe_purple_plugin_load(PurplePlugin *plugin);
+gboolean sipe_purple_plugin_unload(PurplePlugin *plugin);
+
+PurpleAccountUserSplit *sipe_purple_user_split(void);
+GList * sipe_purple_account_options(void);
+
+GList * sipe_purple_actions(void);
+gchar *sipe_purple_status_text(struct _PurpleBuddy *buddy);
+void sipe_purple_tooltip_text(struct _PurpleBuddy *buddy,
+			      struct _PurpleNotifyUserInfo *user_info,
+			      gboolean full);
+GList *sipe_purple_blist_node_menu(struct _PurpleBlistNode *node);
+void sipe_purple_convo_closed(struct _PurpleConnection *gc, const char *who);
+GHashTable * sipe_purple_get_account_text_table(struct _PurpleAccount *account);
+
+void sipe_purple_login(struct _PurpleAccount *account);
+void sipe_purple_close(struct _PurpleConnection *gc);
+GList *sipe_purple_status_types(struct _PurpleAccount *account);
+const char *sipe_purple_list_icon(struct _PurpleAccount *account,
+				  struct _PurpleBuddy *buddy);
+
+void sipe_purple_get_info(struct _PurpleConnection *gc, const char *who);
+void sipe_purple_alias_buddy(struct _PurpleConnection *gc, const char *name,
+			     const char *alias);
+void sipe_purple_group_rename(struct _PurpleConnection *gc, const char *old_name,
+			      struct _PurpleGroup *group, GList *moved_buddies);
+void sipe_purple_group_remove(struct _PurpleConnection *gc,
+			      struct _PurpleGroup *group);
+
+unsigned int sipe_purple_send_typing(struct _PurpleConnection *gc,
+				     const char *who, PurpleIMTypingState state);
+
+void sipe_purple_add_permit(struct _PurpleConnection *gc, const char *name);
+void sipe_purple_add_deny(struct _PurpleConnection *gc, const char *name);
+
+gboolean sipe_purple_initiate_media(struct _PurpleAccount *account,
+				    const char *who,
+				    PurpleMediaSessionType type);
+PurpleMediaCaps sipe_purple_get_media_caps(PurpleAccount *account,
+					   const char *who);
 
 /*
   Local Variables:

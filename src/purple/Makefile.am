@@ -28,7 +28,13 @@ libsipe_backend_la_SOURCES = \
 	purple-user.c
 
 libsipe_la_SOURCES = \
-	purple-plugin.c
+	purple-plugin-common.c
+
+if SIPE_PURPLE3
+libsipe_la_SOURCES += purple-plugin3.c
+else
+libsipe_la_SOURCES += purple-plugin.c
+endif
 
 AM_CFLAGS = $(st)
 
@@ -37,6 +43,7 @@ libsipe_backend_la_CFLAGS = \
         $(QUALITY_CFLAGS) \
         $(GLIB_CFLAGS) \
 	$(PURPLE_CFLAGS) \
+	$(GPLUGIN_CFLAGS) \
 	-I$(srcdir)/../api
 
 if !SIPE_OS_WIN32

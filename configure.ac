@@ -400,14 +400,18 @@ AS_IF([test "x$enable_purple" != xno],
 				[AC_MSG_WARN([cross compiling: not checking])])
 			 ])
 
-		 dnl enable SRTP when building with libpurple 3.x
 		 AS_IF([test "x$purple_pkgconfig" = xpurple-3],
-			[AC_DEFINE(HAVE_SRTP, 1, [Define if we have SRTP support in media backend.])
+			[dnl enable SRTP when building with libpurple 3.x
+			 AC_DEFINE(HAVE_SRTP, 1, [Define if we have SRTP support in media backend.])
+
+			 dnl libpurple 3.x needs GPlugin library
+			 PKG_CHECK_MODULES(GPLUGIN, [gplugin])
 		 ])
 
 		 CFLAGS=$ac_save_CFLAGS
 		 LIBS=$ac_save_LIBS])])
 AM_CONDITIONAL(SIPE_INCLUDE_PURPLE, [test "x$enable_purple" != xno])
+AM_CONDITIONAL(SIPE_PURPLE3, [test "x$purple_pkgconfig" = xpurple-3])
 
 dnl build option: telepathy backend
 AC_ARG_ENABLE([telepathy],
