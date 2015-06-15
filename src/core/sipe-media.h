@@ -31,9 +31,13 @@ struct sipe_media_call_private;
  *
  * @param sipe_private (in) SIPE core data.
  * @param msg (in) a SIP INVITE message
+ *
+ * @return a @c sipe_media_call_private corresponding to the media session.
+ *         If the call was rejected or there was an error, returns NULL.
  */
-void process_incoming_invite_call(struct sipe_core_private *sipe_private,
-				  struct sipmsg *msg);
+struct sipe_media_call_private *
+process_incoming_invite_call(struct sipe_core_private *sipe_private,
+			     struct sipmsg *msg);
 
 /**
  * Handles incoming SIP CANCEL message.
