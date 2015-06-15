@@ -64,10 +64,10 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 /**
  * Handles incoming SIP CANCEL message.
  *
- * @param sipe_private (in) SIPE core data.
+ * @param call_private (in) SIPE media call data.
  * @param msg (in) a SIP CANCEL message
  */
-void process_incoming_cancel_call(struct sipe_core_private *sipe_private,
+void process_incoming_cancel_call(struct sipe_media_call_private *call_private,
 				  struct sipmsg *msg);
 
 /**
@@ -75,9 +75,9 @@ void process_incoming_cancel_call(struct sipe_core_private *sipe_private,
  * notifies remote participant according to the actual state of call
  * negotiation.
  *
- * @param call_private (in) media call data
+ * @param sipe_private (in) SIPE core data.
  */
-void sipe_media_handle_going_offline(struct sipe_media_call_private *call_private);
+void sipe_media_handle_going_offline(struct sipe_core_private *sipe_private);
 
 /**
  * Checks whether the given media is a conference call.

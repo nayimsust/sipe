@@ -297,13 +297,9 @@ void
 process_incoming_invite_applicationsharing(struct sipe_core_private *sipe_private,
 					   struct sipmsg *msg)
 {
-	struct sipe_media_call *call = NULL;
+	struct sipe_media_call *call = (struct sipe_media_call *)
+			process_incoming_invite_call(sipe_private, msg);
 
-	if (!process_incoming_invite_call(sipe_private, msg)) {
-		return;
-	}
-
-	call = (struct sipe_media_call *)sipe_private->media_call;
 	if (call) {
 		struct sipe_appshare *appshare;
 
@@ -461,8 +457,6 @@ monitor_selected_cb(struct sipe_core_private *sipe_private, gchar *who,
 	call->candidate_pair_established_cb = candidate_pair_established_cb;
 	call->read_cb = read_cb;
 
-	sipe_private->media_call = (struct sipe_media_call_private *)call;
-
 	stream = sipe_media_stream_add(call, "applicationsharing",
 				       SIPE_MEDIA_APPLICATION,
 				       SIPE_ICE_RFC_5245, TRUE);
@@ -471,7 +465,6 @@ monitor_selected_cb(struct sipe_core_private *sipe_private, gchar *who,
 				_("Application sharing error"),
 				_("Couldn't initialize application sharing"));
 		sipe_backend_media_hangup(call->backend_private, TRUE);
-		sipe_private->media_call = NULL;
 		g_free(who);
 		return;
 	}
@@ -554,11 +547,6 @@ void
 sipe_core_share_application(struct sipe_core_public *sipe_public,
 			    const gchar *who)
 {
-	if (SIPE_CORE_PRIVATE->media_call) {
-		// Some call already in progress, can't start another (so far).
-		return;
-	}
-
 	present_monitor_choice(sipe_public, who);
 }
 

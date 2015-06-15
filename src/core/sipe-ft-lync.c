@@ -54,6 +54,7 @@ struct sipe_file_transfer_lync {
 	guint expecting_len;
 
 	struct sipe_core_private *sipe_private;
+	struct sipe_media_call_private *call_private;
 	struct sip_dialog *dialog;
 
 	gboolean was_cancelled;
@@ -232,7 +233,7 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 	struct sipe_file_transfer_lync *ft_private =
 			(struct sipe_file_transfer_lync *)ft;
 	struct sipe_media_call *call =
-			(struct sipe_media_call *)ft_private->sipe_private->media_call;
+			(struct sipe_media_call *)ft_private->call_private;
 
 	if (call) {
 		sipe_backend_media_accept(call->backend_private, TRUE);
@@ -295,12 +296,15 @@ ft_lync_incoming_end(struct sipe_file_transfer *ft)
 }
 
 static gboolean
-request_cancelled_cb(struct sipe_core_private *sipe_private,
-		     SIPE_UNUSED_PARAMETER struct sipmsg *msg,
+request_cancelled_cb(struct sipe_core_private *sipe_private, struct sipmsg *msg,
 		     SIPE_UNUSED_PARAMETER struct transaction *trans)
 {
+	struct sipe_media_call_private *call_private =
+			g_hash_table_lookup(sipe_private->media_calls,
+					    sipmsg_find_header(msg, "Call-ID"));
+
 	struct sipe_file_transfer_lync *ft_private =
-			ft_private_form_call((struct sipe_media_call *)sipe_private->media_call);
+			ft_private_form_call((struct sipe_media_call *)call_private);
 
 	ft_lync_deallocate(SIPE_FILE_TRANSFER);
 
@@ -308,12 +312,15 @@ request_cancelled_cb(struct sipe_core_private *sipe_private,
 }
 
 static gboolean
-cancel_transfer_cb(struct sipe_core_private *sipe_private,
-		   SIPE_UNUSED_PARAMETER struct sipmsg *msg,
+cancel_transfer_cb(struct sipe_core_private *sipe_private, struct sipmsg *msg,
 		   SIPE_UNUSED_PARAMETER struct transaction *trans)
 {
+	struct sipe_media_call_private *call_private =
+			g_hash_table_lookup(sipe_private->media_calls,
+					    sipmsg_find_header(msg, "Call-ID"));
+
 	struct sipe_file_transfer_lync *ft_private =
-			ft_private_form_call((struct sipe_media_call *)sipe_private->media_call);
+			ft_private_form_call((struct sipe_media_call *)call_private);
 
 	static const gchar *FILETRANSFER_CANCEL_RESPONSE =
 			"<response xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\" code=\"failure\" reason=\"requestCancelled\"/>";
@@ -362,7 +369,7 @@ ft_lync_deallocate(struct sipe_file_transfer *ft)
 	struct sipe_file_transfer_lync *ft_private =
 			(struct sipe_file_transfer_lync *) ft;
 	struct sipe_media_call *call =
-			(struct sipe_media_call *)ft_private->sipe_private->media_call;
+			(struct sipe_media_call *)ft_private->call_private;
 	if (call) {
 		sipe_backend_media_hangup(call->backend_private, TRUE);
 	}
@@ -393,9 +400,14 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	msg->bodylen = strlen(msg->body);
 	ft_private->sdp = NULL;
 
-	process_incoming_invite_call(sipe_private, msg);
+	ft_private->call_private = process_incoming_invite_call(sipe_private, msg);
+	if (!ft_private->call_private) {
+		sip_transport_response(sipe_private, msg, 500, "Server Internal Error", NULL);
+		sipe_file_transfer_lync_free(ft_private);
+		return;
+	}
 
-	call = (struct sipe_media_call *)sipe_private->media_call;
+	call = (struct sipe_media_call *) ft_private->call_private;
 	call->candidate_pair_established_cb = candidate_pair_established_cb;
 	call->read_cb = read_cb;
 
@@ -459,7 +471,7 @@ static gboolean
 send_file_chunk(struct sipe_file_transfer_lync *ft_private)
 {
 	struct sipe_media_call *call =
-			(struct sipe_media_call *)ft_private->sipe_private->media_call;
+			(struct sipe_media_call *)ft_private->call_private;
 	struct sipe_media_stream *stream =
 			sipe_core_media_get_stream_by_id(call, "data");
 	//gchar buffer[G_MAXINT16];
@@ -491,7 +503,7 @@ static void
 start_writing(struct sipe_file_transfer_lync *ft_private)
 {
 	struct sipe_media_call *call =
-			(struct sipe_media_call *)ft_private->sipe_private->media_call;
+			(struct sipe_media_call *)ft_private->call_private;
 	struct sipe_media_stream *stream =
 			sipe_core_media_get_stream_by_id(call, "data");
 
@@ -559,11 +571,11 @@ process_incoming_info_ft_lync(struct sipe_core_private *sipe_private,
 	struct sipe_file_transfer_lync *ft_private;
 	sipe_xml *xml;
 
-	if (!sipe_private->media_call) {
-		return;
-	}
+	struct sipe_media_call_private *call_private =
+			g_hash_table_lookup(sipe_private->media_calls,
+					    sipmsg_find_header(msg, "Call-ID"));
 
-	ft_private = ft_private_form_call((struct sipe_media_call *)sipe_private->media_call);
+	ft_private = ft_private_form_call((struct sipe_media_call *)call_private);
 	if (!ft_private) {
 		return;
 	}
@@ -630,11 +642,6 @@ ft_lync_outgoing_init(struct sipe_file_transfer *ft, const gchar *filename,
 	struct sipe_media_stream *stream;
 	struct sip_session *session;
 
-	if (sipe_private->media_call) {
-		sipe_backend_ft_cancel_local(ft);
-		return;
-	}
-
 	ft_private->file_name = g_strdup(filename);
 	ft_private->file_size = size;
 
@@ -643,6 +650,7 @@ ft_lync_outgoing_init(struct sipe_file_transfer *ft, const gchar *filename,
 
 	session = sipe_session_find_call(sipe_private, call->with);
 	ft_private->dialog = session->dialogs->data;
+	ft_private->call_private = (struct sipe_media_call_private *) call;
 
 	stream = sipe_media_stream_add(call, "data", SIPE_MEDIA_APPLICATION,
 				       SIPE_ICE_RFC_5245, TRUE);
@@ -652,7 +660,6 @@ ft_lync_outgoing_init(struct sipe_file_transfer *ft, const gchar *filename,
 					  _("Error creating data stream"));
 
 		sipe_backend_media_hangup(call->backend_private, FALSE);
-		sipe_private->media_call = NULL;
 		sipe_backend_ft_cancel_local(ft);
 		return;
 	}

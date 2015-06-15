@@ -63,9 +63,11 @@ void process_incoming_bye(struct sipe_core_private *sipe_private,
 	struct sip_dialog *dialog;
 
 #ifdef HAVE_VV
-	if (is_media_session_msg(sipe_private->media_call, msg)) {
+	struct sipe_media_call_private *call_private =
+			g_hash_table_lookup(sipe_private->media_calls, callid);
+	if (is_media_session_msg(call_private, msg)) {
 		// BYE ends a media call
-		sipe_backend_media_hangup(((struct sipe_media_call *)sipe_private->media_call)->backend_private,
+		sipe_backend_media_hangup(((struct sipe_media_call *)call_private)->backend_private,
 					  FALSE);
 	}
 #endif
@@ -124,15 +126,16 @@ void process_incoming_bye(struct sipe_core_private *sipe_private,
 void process_incoming_cancel(struct sipe_core_private *sipe_private,
 			     struct sipmsg *msg)
 {
-	const gchar *callid;
+	const gchar *callid = sipmsg_find_header(msg, "Call-ID");
 
 #ifdef HAVE_VV
-	if (is_media_session_msg(sipe_private->media_call, msg)) {
-		process_incoming_cancel_call(sipe_private, msg);
+	struct sipe_media_call_private *call_private =
+			g_hash_table_lookup(sipe_private->media_calls, callid);
+	if (is_media_session_msg(call_private, msg)) {
+		process_incoming_cancel_call(call_private, msg);
 		return;
 	}
 #endif
-	callid = sipmsg_find_header(msg, "Call-ID");
 
 	if (!sipe_session_find_chat_by_callid(sipe_private, callid))
 		sipe_conf_cancel_unaccepted(sipe_private, msg);
