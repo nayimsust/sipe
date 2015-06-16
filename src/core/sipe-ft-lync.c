@@ -383,7 +383,6 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	struct sipe_file_transfer_lync *ft_private;
 	struct sipe_media_call *call;
 	struct sipe_media_stream *stream;
-	struct sip_session *session = NULL;
 
 	ft_private = g_new0(struct sipe_file_transfer_lync, 1);
 	sipe_mime_parts_foreach(sipmsg_find_header(msg, "Content-Type"),
@@ -416,8 +415,7 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 
 	ft_private->sipe_private = sipe_private;
 
-	session = sipe_session_find_call(sipe_private, call->with);
-	ft_private->dialog = session->dialogs->data;
+	ft_private->dialog = sipe_media_get_sip_dialog(call);
 
 	ft_private->public.init = ft_lync_incoming_init;
 	ft_private->public.end = ft_lync_incoming_end;
@@ -640,7 +638,6 @@ ft_lync_outgoing_init(struct sipe_file_transfer *ft, const gchar *filename,
 	struct sipe_file_transfer_lync *ft_private = SIPE_FILE_TRANSFER_PRIVATE;
 	struct sipe_media_call *call;
 	struct sipe_media_stream *stream;
-	struct sip_session *session;
 
 	ft_private->file_name = g_strdup(filename);
 	ft_private->file_size = size;
@@ -648,8 +645,7 @@ ft_lync_outgoing_init(struct sipe_file_transfer *ft, const gchar *filename,
 	call = sipe_data_session_new_outgoing(sipe_private, who, TRUE,
 					      SIPE_ICE_RFC_5245);
 
-	session = sipe_session_find_call(sipe_private, call->with);
-	ft_private->dialog = session->dialogs->data;
+	ft_private->dialog = sipe_media_get_sip_dialog(call);
 	ft_private->call_private = (struct sipe_media_call_private *) call;
 
 	stream = sipe_media_stream_add(call, "data", SIPE_MEDIA_APPLICATION,
