@@ -111,7 +111,10 @@ const gchar *sipe_ocs2007_status_from_legacy_availability(guint availability,
 	} else if (availability < SIPE_OCS2007_LEGACY_AVAILIBILITY_DND) {
 		type = SIPE_ACTIVITY_BUSYIDLE;
 	} else if (availability < SIPE_OCS2007_LEGACY_AVAILIBILITY_BRB) {
-		type = SIPE_ACTIVITY_DND;
+		type = sipe_status_token_to_activity(activity);
+		if (type != SIPE_ACTIVITY_IN_PRES) {
+			type = SIPE_ACTIVITY_DND;
+		}
 	} else if (availability < SIPE_OCS2007_LEGACY_AVAILIBILITY_AWAY) {
 		type = SIPE_ACTIVITY_BRB;
 	} else if (availability < SIPE_OCS2007_LEGACY_AVAILIBILITY_OFFLINE) {
@@ -834,13 +837,13 @@ static void schedule_publish_update(struct sipe_core_private *sipe_private,
 	"<publication categoryName=\"state\" instance=\"%u\" container=\"2\" version=\"%u\" expireType=\"endpoint\">"\
 		"<state xmlns=\"http://schemas.microsoft.com/2006/09/sip/state\" manual=\"false\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"phoneState\">"\
 			"<availability>%u</availability>"\
-			"<activity token=\"%s\" minAvailability=\"%u\" maxAvailability=\"8999\"/>"\
+			"<activity token=\"%s\" minAvailability=\"%u\" maxAvailability=\"%u\"/>"\
 		"</state>"\
 	"</publication>"\
 	"<publication categoryName=\"state\" instance=\"%u\" container=\"3\" version=\"%u\" expireType=\"endpoint\">"\
 		"<state xmlns=\"http://schemas.microsoft.com/2006/09/sip/state\" manual=\"false\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"phoneState\">"\
 			"<availability>%u</availability>"\
-			"<activity token=\"%s\" minAvailability=\"%u\" maxAvailability=\"8999\"/>"\
+			"<activity token=\"%s\" minAvailability=\"%u\" maxAvailability=\"%u\"/>"\
 		"</state>"\
 	"</publication>"
 
@@ -1827,21 +1830,30 @@ void sipe_ocs2007_phone_state_publish(struct sipe_core_private *sipe_private)
 
 #ifdef HAVE_VV
 	if (g_hash_table_size(sipe_private->media_calls)) {
-		guint availability = 0;
+		guint availability_min = 0;
+		guint availability_max = 8999;
 		const gchar *token = NULL;
 		GList *calls = g_hash_table_get_values(sipe_private->media_calls);
 		GList *i;
 
 		if (sipe_core_media_get_call(SIPE_CORE_PUBLIC)) {
-			availability = 6500;
+			availability_min = 6500;
 			token = sipe_status_activity_to_token(SIPE_ACTIVITY_ON_PHONE);
 		}
 
 		for (i = calls; i; i = i->next) {
+			struct sipe_media_stream *stream;
+
 			if (sipe_media_is_conference_call(i->data)) {
-				availability = 7000;
+				availability_min = 7000;
 				token = sipe_status_activity_to_token(SIPE_ACTIVITY_IN_CONF);
-				break;
+			}
+
+			stream = sipe_core_media_get_stream_by_id(i->data, "applicationsharing");
+			if (stream && sipe_backend_media_is_initiator(i->data, stream)) {
+				availability_min = 9000;
+				availability_max = 11999;
+				token = "in-presentation";
 			}
 		}
 
@@ -1850,9 +1862,9 @@ void sipe_ocs2007_phone_state_publish(struct sipe_core_private *sipe_private)
 		if (token) {
 			publications = g_strdup_printf(SIPE_PUB_XML_STATE_PHONE,
 					instance, publication_2 ? publication_2->version : 0,
-					availability, token, availability,
+					availability_min, token, availability_min, availability_max,
 					instance, publication_3 ? publication_3->version : 0,
-					availability, token, availability);
+					availability_min, token, availability_min, availability_max);
 		}
 	} else
 #endif
