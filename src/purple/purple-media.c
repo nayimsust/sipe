@@ -68,6 +68,9 @@ struct sipe_backend_media {
 	 * Number of media streams that were not yet locally accepted or rejected.
 	 */
 	guint unconfirmed_streams;
+
+	gboolean has_rtp_candidate_pair;
+	gboolean has_rtcp_candidate_pair;
 };
 
 struct sipe_backend_media_stream {
@@ -238,22 +241,37 @@ on_stream_info_cb(PurpleMedia *media,
 
 static void
 on_candidate_pair_established_cb(SIPE_UNUSED_PARAMETER PurpleMedia *media,
-				 SIPE_UNUSED_PARAMETER const gchar *sessionid,
+				 const gchar *sessionid,
 				 SIPE_UNUSED_PARAMETER const gchar *participant,
 				 SIPE_UNUSED_PARAMETER PurpleMediaCandidate *local_candidate,
 				 SIPE_UNUSED_PARAMETER PurpleMediaCandidate *remote_candidate,
-				 SIPE_UNUSED_PARAMETER struct sipe_media_call *call)
+				 struct sipe_media_call *call)
 {
-#if PURPLE_VERSION_CHECK(2,10,12) || PURPLE_VERSION_CHECK(3,0,0)
-	if (purple_media_candidate_get_protocol(local_candidate) != PURPLE_MEDIA_NETWORK_PROTOCOL_UDP) {
-		purple_media_set_send_rtcp_mux(media, sessionid, participant, TRUE);
-	}
-#endif
+	PurpleMediaNetworkProtocol protocol =
+			purple_media_candidate_get_protocol(local_candidate);
 
-	if (call->candidate_pair_established_cb) {
-		struct sipe_media_stream *stream =
-				sipe_core_media_get_stream_by_id(call, sessionid);
-		call->candidate_pair_established_cb(call, stream);
+
+	if (protocol == PURPLE_MEDIA_NETWORK_PROTOCOL_UDP) {
+		switch (purple_media_candidate_get_component_id(local_candidate)) {
+			case PURPLE_MEDIA_COMPONENT_RTP:
+				call->backend_private->has_rtp_candidate_pair = TRUE;
+				break;
+			case PURPLE_MEDIA_COMPONENT_RTCP:
+				call->backend_private->has_rtcp_candidate_pair = TRUE;
+				break;
+		}
+	} else {
+#if PURPLE_VERSION_CHECK(2,10,12) || PURPLE_VERSION_CHECK(3,0,0)
+		purple_media_set_send_rtcp_mux(media, sessionid, participant, TRUE);
+#endif
+		call->backend_private->has_rtp_candidate_pair = TRUE;
+		call->backend_private->has_rtcp_candidate_pair = TRUE;
+	}
+
+	if (call->backend_private->has_rtp_candidate_pair &&
+	    call->backend_private->has_rtcp_candidate_pair) {
+		sipe_core_media_candidate_pair_established(call,
+				sipe_core_media_get_stream_by_id(call, sessionid));
 	}
 }
 
